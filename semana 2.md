@@ -1,808 +1,869 @@
-# PROGRAMACIÓN AVANZADA DE BASE DE DATOS
-## Sesión 02 - Tipos de consultas (Parte 1)
-### Guía del estudiante - SQL Server + Northwind
-
-**Propósito de la práctica:** preparar la base de datos Northwind y utilizarla durante toda la sesión para ejecutar consultas simples, filtros, funciones de agregación, `GROUP BY`, `HAVING` y funciones de SQL Server.
-
-**Punto de partida real:** tu instancia de SQL Server puede mostrar únicamente las bases del sistema: `master`, `model`, `msdb` y `tempdb`. Eso significa que el motor está disponible, pero **Northwind todavía no está instalada**.
-
-**Resultado observable:** al finalizar podrás abrir SSMS, instalar Northwind de forma correcta, identificar sus tablas principales y ejecutar consultas alineadas con la Sesión 02.
-
+---
+title: "Guía del Estudiante - S02 Tipos de consultas (Parte 1)"
+lang: es
+geometry: margin=22mm
+header-includes:
+  - \usepackage{fancyhdr}
+  - \usepackage{longtable}
+  - \usepackage{array}
+  - \pagestyle{fancy}
+  - \fancyhf{}
+  - \fancyhead[L]{Lideratec Academy}
+  - \fancyhead[R]{ISIL-PABD-30627 - S02}
+  - \fancyfoot[C]{\thepage}
+  - \setlength{\headheight}{15pt}
 ---
 
-# 1. Antes de comenzar
+# Guía del Estudiante
 
-## 1.1 ¿Qué componentes vamos a utilizar?
+**Curso:** Programación Avanzada de Base de Datos  
+**Sesión:** S02 - Tipos de consultas (Parte 1)  
+**Laboratorio asociado:** `FASE_15`  
+**Base autocontenida:** `Northwind_S02_Lab`
 
-| Componente | Para qué sirve | ¿Ya debe existir? |
-|---|---|---|
-| SQL Server | Motor que almacena y procesa la base de datos | Sí |
-| SQL Server Management Studio (SSMS) | Interfaz para conectarnos, abrir scripts y ejecutar consultas | Sí |
-| Northwind | Base de datos de ejemplo sobre clientes, pedidos, productos y empleados | La instalaremos |
-| `instnwnd.sql` | Script oficial de Microsoft que crea los objetos y carga los datos de Northwind | Lo descargaremos |
+## 1. Propósito de la sesión
 
-> **Importante:** `master`, `model`, `msdb` y `tempdb` son bases del sistema. No las utilizaremos para desarrollar los ejercicios de la clase.
+En esta sesión aprenderás a transformar una necesidad de información en una consulta T-SQL verificable. Trabajarás con selección de columnas, filtros, rangos, conjuntos, patrones de texto, agregaciones, agrupaciones, filtros de grupos y funciones integradas. El objetivo no es memorizar sentencias aisladas: debes poder anticipar qué filas o valores debería devolver una consulta, ejecutarla, interpretar el resultado y corregirla cuando la salida no coincide con lo esperado.
 
-## 1.2 Recursos oficiales
+El laboratorio usa un conjunto reducido con estructura inspirada en Northwind para que puedas trabajar sin depender de rutas físicas de archivos `.mdf/.ldf`. Si tu institución ya tiene la Northwind completa, puedes reutilizarla; las consultas se mantienen dentro de los conceptos de la sesión.
 
-- Microsoft Learn - bases de datos de ejemplo: https://learn.microsoft.com/en-us/dotnet/framework/data/adonet/sql/linq/downloading-sample-databases
-- Repositorio oficial Microsoft SQL Server Samples: https://github.com/microsoft/sql-server-samples/tree/master/samples/databases/northwind-pubs
-- Script `instnwnd.sql`: https://github.com/microsoft/sql-server-samples/blob/master/samples/databases/northwind-pubs/instnwnd.sql
+## 2. Resultado observable
 
----
+### A. Lectura sugerida del docente
 
-# 2. Preparación del entorno: instalar Northwind
+Al finalizar la práctica deberás ser capaz de abrir una consulta en SQL Server Management Studio, seleccionar la base correcta y construir sentencias que respondan preguntas concretas sobre los datos. No bastará con que una consulta “corra”: tendrás que explicar qué conjunto de filas estás consultando, qué condición elimina o conserva registros, qué cambia cuando modificas un límite y por qué una agregación devuelve una fila o varias. También aprenderás a diferenciar el filtrado de filas con `WHERE` del filtrado de grupos con `HAVING`, y a usar funciones integradas para transformar texto, números y fechas sin alterar los datos almacenados. La evidencia de dominio será observable en tus predicciones, en las consultas ejecutadas, en la interpretación de resultados y en las tareas espejo que resolverás después de cada ejemplo. Una respuesta correcta que no puedes explicar todavía no representa dominio completo; una consulta que puedes justificar, modificar y validar sí.
 
-## 2.1 ¿Por qué necesitamos Northwind?
+### B. Desempeños observables
 
-La sesión utiliza tablas como:
+- construir consultas `SELECT` con columnas, alias y expresiones;
+- aplicar filtros básicos y especializados;
+- interpretar rangos y patrones de texto;
+- resumir datos mediante agregaciones;
+- agrupar y filtrar grupos;
+- aplicar funciones de cadena, numéricas y fecha;
+- diagnosticar errores frecuentes de sintaxis o lógica;
+- validar una consulta comparando la salida con una predicción.
 
-- `Customers`
-- `Employees`
-- `Products`
-- `Orders`
-- `Order Details`
-- `Categories`
-- `Suppliers`
+### C. Criterio de dominio
 
-Si ejecutas una consulta como:
+Demuestras dominio cuando puedes resolver T01-T08 sin copiar literalmente los ejemplos, explicar por qué cada consulta devuelve ese conjunto y corregir al menos un error controlado identificando su causa.
+
+## 3. Antes de iniciar
+
+### Debes saber
+
+- qué representa una tabla, fila y columna;
+- cómo conectarte a una instancia de SQL Server disponible para el laboratorio;
+- que las consultas de esta sesión son de lectura: no necesitas modificar datos.
+
+### Debes tener disponible
+
+- SQL Server accesible;
+- SQL Server Management Studio;
+- carpeta `FASE_15` descargada;
+- permisos para crear una base de laboratorio o una Northwind institucional ya preparada.
+
+### No se asumirá todavía
+
+No necesitas dominar `JOIN`, CTE, funciones ventana ni subconsultas avanzadas. No los uses para resolver las tareas de esta guía.
+
+## 4. Herramientas y recursos para la práctica
+
+### SQL Server
+
+Es el motor que ejecutará T-SQL. Para un equipo nuevo, Microsoft mantiene SQL Server 2025 y permite seleccionar una edición gratuita de desarrollo durante la instalación. En un laboratorio institucional, utiliza la versión indicada por el docente si ya está instalada.
+
+**Sitio oficial:** https://learn.microsoft.com/en-us/sql/database-engine/install-windows/install-sql-server-from-the-installation-wizard-setup?view=sql-server-ver17
+
+**Validación mínima:** después de instalar/iniciar la instancia, debes poder conectarte desde SSMS y ejecutar `SELECT @@VERSION;`.
+
+### SQL Server Management Studio (SSMS)
+
+Es el cliente gráfico usado para conectarse, abrir scripts, ejecutarlos y observar resultados. La línea vigente es SSMS 22.
+
+**Instalación oficial:** https://learn.microsoft.com/en-us/ssms/install/install
+
+Al descargar SSMS 22, Microsoft distribuye el bootstrapper `vs_SSMS.exe`, que abre Visual Studio Installer. Instala SSMS y, al finalizar, inicia el programa.
+
+**Validación mínima:** SSMS abre, muestra el cuadro de conexión y, después de conectar, puedes crear una ventana de consulta.
+
+### Laboratorio FASE 15
+
+Abre `FASE_15_Laboratorio.zip`, extrae la carpeta y localiza:
+
+- `00_Crear_Northwind_S02_Lab.sql`;
+- carpeta `estudiante/` con EJ01-EJ08;
+- `README_Laboratorio.md`.
+
+No necesitas Git para esta sesión.
+
+## 5. Ruta de trabajo
+
+```text
+VERIFICAR SQL SERVER Y SSMS
+  -> PREPARAR Northwind_S02_Lab
+  -> EJ01 -> T01
+  -> EJ02 -> T02
+  -> EJ03 -> T03
+  -> EJ04 -> T04
+  -> EJ05 -> T05
+  -> EJ06 -> T06
+  -> EJ07 -> T07
+  -> EJ08 -> T08
+  -> CIERRE
+```
+
+## 6. Preparación y verificación del entorno desde cero
+
+### Ruta A - Ya tienes SQL Server y SSMS
+
+1. Abre SSMS y conéctate a la instancia del laboratorio.
+2. Abre una nueva consulta y ejecuta:
 
 ```sql
-SELECT * FROM Customers;
+SELECT @@VERSION AS VersionServidor;
 ```
 
-sin haber instalado Northwind, SQL Server responderá que el objeto no existe.
-
-La preparación del entorno forma parte de la práctica. Primero instalamos la base y luego usamos **la misma base durante toda la sesión**.
-
----
-
-## 2.2 Paso 1 - Descargar el script oficial
-
-1. Abre tu navegador.
-2. Ingresa a:
-   https://github.com/microsoft/sql-server-samples/tree/master/samples/databases/northwind-pubs
-3. Ubica el archivo **`instnwnd.sql`**.
-4. Ábrelo.
-5. En GitHub utiliza la opción **Raw** para visualizar únicamente el contenido SQL.
-6. Guarda el archivo en una carpeta fácil de ubicar, por ejemplo:
-
-```text
-Documentos\ISIL\Sesion02\instnwnd.sql
-```
-
-También puedes utilizar directamente la versión Raw:
-
-https://raw.githubusercontent.com/microsoft/sql-server-samples/refs/heads/master/samples/databases/northwind-pubs/instnwnd.sql
-
-### ¿Qué acabamos de descargar?
-
-No descargamos un instalador `.exe`. Descargamos un **script Transact-SQL**. Ese script contiene la creación de tablas, relaciones, vistas y los datos de ejemplo de Northwind.
-
-### Punto de control
-
-Comprueba que el archivo termine en:
-
-```text
-instnwnd.sql
-```
-
-y no en `.txt`.
-
----
-
-## 2.3 Paso 2 - Crear primero una base vacía llamada Northwind
-
-La versión oficial actual de `instnwnd.sql` contiene una advertencia importante:
-
-> El script no crea la base de datos; debe ejecutarse dentro de la base donde se crearán los objetos.
-
-Por esa razón, primero crearemos la base vacía.
-
-### Opción A - Desde la interfaz de SSMS
-
-1. Vuelve a SSMS.
-2. En **Explorador de objetos**, ubica la carpeta **Bases de datos**.
-3. Clic derecho sobre **Bases de datos**.
-4. Selecciona **Nueva base de datos...**.
-5. En **Nombre de la base de datos** escribe:
-
-```text
-Northwind
-```
-
-6. No cambies rutas, tamaños ni opciones avanzadas para esta práctica.
-7. Presiona **Aceptar**.
-8. Si no la ves, clic derecho en **Bases de datos** -> **Actualizar**.
-
-### Resultado esperado
-
-Debes observar algo parecido a:
-
-```text
-Bases de datos
-├── Bases de datos del sistema
-└── Northwind
-```
-
-### Opción B - Con una consulta SQL
-
-También puedes crearla desde una nueva consulta:
+3. Si recibes una fila con la versión, la conexión funciona.
+4. Abre `00_Crear_Northwind_S02_Lab.sql` y ejecútalo completo. El script crea o reutiliza `Northwind_S02_Lab` y reconstruye solo sus tablas de práctica.
+5. En Object Explorer, actualiza `Databases` y verifica que aparece `Northwind_S02_Lab`.
+6. Ejecuta:
 
 ```sql
-USE master;
+USE Northwind_S02_Lab;
 GO
+SELECT COUNT(*) AS Productos FROM dbo.Products;
+```
 
-IF DB_ID(N'Northwind') IS NULL
-    CREATE DATABASE Northwind;
+Debes obtener una fila con un conteo mayor que cero.
+
+**Error frecuente:** ejecutar los ejemplos en `master`.  
+**Corrección:** verifica que cada archivo inicia con `USE Northwind_S02_Lab;` o selecciona explícitamente esa base en el desplegable de SSMS.
+
+### Ruta B - Equipo sin preparar
+
+1. Instala una edición de SQL Server adecuada para desarrollo/laboratorio desde la documentación oficial.
+2. Durante el asistente selecciona una edición gratuita de desarrollo si el equipo es personal de práctica; no uses Developer para producción.
+3. Completa la instalación del motor y conserva el nombre de la instancia para conectarte.
+4. Instala SSMS 22 con `vs_SSMS.exe` desde la página oficial.
+5. Abre SSMS y conecta al motor instalado.
+6. Valida con `SELECT @@VERSION;`.
+7. Ejecuta `00_Crear_Northwind_S02_Lab.sql`.
+8. Verifica `Northwind_S02_Lab` y el conteo de Products.
+
+Si tu institución ya entrega una Northwind completa, no crees la base reducida salvo indicación del docente; usa la base institucional y adapta solo la línea `USE` de los ejemplos.
+
+## 7. Desarrollo del laboratorio mediante ejemplos resueltos
+
+
+# EJ01 - SELECT, columnas, alias y expresión calculada
+
+## Qué vamos a resolver
+
+Construir una consulta legible sobre Products que muestre identificador, nombre, precio, stock y el valor estimado del stock.
+
+## Qué aprenderás aquí
+
+Seleccionar columnas específicas, asignar alias y crear una expresión calculada sin modificar los datos.
+
+## Archivo del laboratorio
+
+`FASE_15/estudiante/EJ01_Select_Alias_Expresion.sql`
+
+## Punto de partida
+
+`Northwind_S02_Lab` debe existir y la ventana de consulta debe estar conectada al servidor correcto.
+
+## Concepto justo a tiempo
+
+`SELECT` define qué datos devuelve la consulta. Un alias cambia el encabezado del resultado, no el nombre real de la columna. Una expresión como `UnitPrice * UnitsInStock` calcula un valor para cada fila.
+
+## Paso 1 - Lee la consulta antes de ejecutarla
+
+```sql
+USE Northwind_S02_Lab;
 GO
-```
-
-**¿Por qué usamos `master` aquí?**  
-Porque estamos solicitando al servidor la creación de una nueva base. Después dejaremos de trabajar en `master` y cambiaremos a `Northwind`.
-
----
-
-## 2.4 Paso 3 - Abrir `instnwnd.sql` en SSMS
-
-1. En SSMS selecciona **Archivo -> Abrir -> Archivo...**
-2. Busca `instnwnd.sql`.
-3. Ábrelo.
-4. SSMS mostrará el script en una ventana de consulta.
-
-### Antes de ejecutar: revisión crítica
-
-Observa el selector de base de datos de la barra superior de la consulta.
-
-Debe indicar:
-
-```text
-Northwind
-```
-
-Si aparece `master`, **no ejecutes todavía**.
-
-Cambia el selector a `Northwind`.
-
-### ¿Por qué?
-
-El script oficial crea los objetos en la base activa. Si lo ejecutaras accidentalmente sobre `master`, estarías colocando tablas de ejemplo dentro de una base del sistema.
-
----
-
-## 2.5 Paso 4 - Ejecutar el script
-
-1. Confirma que la base activa sea `Northwind`.
-2. Ejecuta el script completo con el botón **Ejecutar** o con `F5`.
-3. Espera a que termine.
-
-El archivo es largo porque no solo crea tablas: también inserta los datos del ejemplo.
-
-### Resultado esperado
-
-La ejecución debe finalizar sin errores que impidan crear los objetos.
-
-No cierres el archivo hasta completar la validación.
-
----
-
-# 3. Validar que Northwind quedó instalada
-
-Abre una **Nueva consulta** y ejecuta:
-
-```sql
-USE Northwind;
-GO
-
-SELECT DB_NAME() AS BaseActiva;
-```
-
-## ¿Qué debes observar?
-
-La columna `BaseActiva` debe mostrar:
-
-```text
-Northwind
-```
-
-Ahora valida algunas tablas:
-
-```sql
-SELECT TOP (5) *
-FROM dbo.Customers;
-
-SELECT TOP (5) *
-FROM dbo.Products;
-
-SELECT TOP (5) *
-FROM dbo.Orders;
-```
-
-Si aparecen registros, la instalación está lista.
-
-También puedes verificar los objetos:
-
-```sql
-SELECT
-    t.name AS Tabla
-FROM sys.tables AS t
-ORDER BY t.name;
-```
-
-Debes encontrar, entre otras:
-
-```text
-Categories
-Customers
-Employees
-Order Details
-Orders
-Products
-Shippers
-Suppliers
-```
-
----
-
-# 4. Conocer la relación entre las tablas
-
-Antes de consultar datos conviene comprender qué representa cada tabla.
-
-| Tabla | Representa |
-|---|---|
-| `Customers` | Clientes |
-| `Employees` | Empleados |
-| `Products` | Productos |
-| `Categories` | Categorías de productos |
-| `Suppliers` | Proveedores |
-| `Orders` | Cabecera de pedidos |
-| `Order Details` | Detalle de productos vendidos en cada pedido |
-
-## Crear el diagrama en SSMS
-
-1. Expande `Northwind`.
-2. Ubica **Diagramas de base de datos**.
-3. Clic derecho -> **Nuevo diagrama de base de datos**.
-4. Si SSMS solicita instalar objetos de soporte, confirma para este laboratorio.
-5. Selecciona las tablas que quieras visualizar.
-6. Agrega al menos:
-   - `Customers`
-   - `Orders`
-   - `Order Details`
-   - `Products`
-   - `Categories`
-   - `Suppliers`
-   - `Employees`
-7. Observa las relaciones.
-8. Guarda el diagrama si deseas reutilizarlo.
-
-### Lectura guiada
-
-```text
-Customers
-   |
-   v
-Orders
-   |
-   v
-Order Details
-   |
-   v
-Products
-   |
-   +------> Categories
-   |
-   +------> Suppliers
-```
-
-Por ahora utilizaremos principalmente consultas sobre una tabla y agregaciones. Más adelante, estas relaciones permitirán combinar información de varias tablas.
-
----
-
-# 5. Ejemplo 1 - Consultas simples con SELECT
-
-## 1. ¿Qué aprenderemos?
-
-A recuperar filas y columnas de una tabla.
-
-## 2. Antes de comenzar
-
-Abre una nueva consulta y ejecuta siempre:
-
-```sql
-USE Northwind;
-GO
-```
-
-Eso evita ejecutar las sentencias sobre otra base.
-
-## 3. Mostrar todos los clientes
-
-```sql
-SELECT *
-FROM dbo.Customers;
-```
-
-### ¿Qué significa?
-
-- `SELECT`: indica qué información queremos recuperar.
-- `*`: solicita todas las columnas.
-- `FROM`: indica de qué tabla provienen los datos.
-- `dbo.Customers`: tabla `Customers` del esquema `dbo`.
-
-## 4. Mostrar solo columnas necesarias
-
-```sql
-SELECT
-    CustomerID,
-    CompanyName,
-    ContactName,
-    Country
-FROM dbo.Customers;
-```
-
-### ¿Por qué es mejor?
-
-Porque una consulta real debería recuperar solo los datos que necesita.
-
-## 5. Consultar empleados
-
-```sql
-SELECT
-    FirstName,
-    LastName,
-    Title
-FROM dbo.Employees;
-```
-
-## 6. Consultar productos
-
-```sql
-SELECT
-    ProductName,
-    UnitPrice,
-    UnitsInStock
+SELECT ProductID,
+       ProductName AS Producto,
+       UnitPrice AS Precio,
+       UnitsInStock AS Stock,
+       UnitPrice * UnitsInStock AS StockValorizado
 FROM dbo.Products;
 ```
 
-### Modificación con el estudiante
+Identifica en voz alta o por escrito: tabla origen, columnas devueltas, condición o cálculo principal y alias utilizados.
 
-Agrega la columna `UnitsOnOrder`.
+## Paso 2 - Antes de ejecutar: predicción
 
-Antes de ejecutar, predice: ¿aparecerá una columna adicional o nuevas filas?
+Antes de ejecutar, predice si `StockValorizado` tendrá el mismo valor para todos los productos. Explica por qué.
 
----
+## Paso 3 - Ejecuta y compara
 
-# 6. Ejemplo 2 - Columnas calculadas y alias
+Ejecuta el bloque completo. Comprueba que no hay error y compara el resultado con tu predicción. No te limites a contar filas: observa los encabezados y los valores que justifican la salida.
 
-Queremos estimar el valor almacenado de cada producto.
+## Variante A - cambia una condición
+
+Agrega `QuantityPerUnit` y cambia el alias `StockValorizado` por `ValorInventario`.
+
+Vuelve a ejecutar y describe qué cambió y qué permaneció igual.
+
+## Error controlado
+
+Escribe temporalmente `UnitPrice * ProductName` en la expresión calculada.
+
+Ejecuta solo si el docente indica que es seguro. Después restaura la versión correcta.
+
+## Por qué ocurrió
+
+La multiplicación requiere tipos numéricos; `ProductName` es texto. SQL Server no puede aplicar esa operación de forma válida.
+
+## Corrección razonada
+
+Vuelve al archivo original, restaura la expresión correcta y confirma que la consulta ejecuta sin error y produce la evidencia esperada.
+
+## Qué debes poder explicar con tus palabras
+
+1. ¿Qué parte de la consulta decide las columnas de salida?
+2. ¿Qué parte decide qué filas o grupos permanecen?
+3. ¿Qué resultado específico usaste para validar la consulta?
+
+## T01 - Tarea espejo
+
+Muestra `EmployeeID`, `FirstName`, `LastName` y una columna calculada/concatenada `NombreCompleto` usando `CONCAT(FirstName,  , LastName)`.
+
+**Restricción:** resuélvela con conceptos presentados hasta este ejemplo; no introduzcas joins ni subconsultas.
+
+**Pista:** parte del ejemplo, pero cambia la tabla/columnas o la condición; no copies la solución final del ejemplo.
+
+**Evidencia:** consulta ejecutada y captura o copia del resultado principal.
+
+**Criterio para saber si está correcta:** La salida debe tener una fila por empleado y el nombre completo debe combinar nombre y apellido.
+
+
+# EJ02 - WHERE con comparadores
+
+## Qué vamos a resolver
+
+Filtrar clientes por país y productos por precio para observar cómo WHERE restringe filas.
+
+## Qué aprenderás aquí
+
+Aplicar condiciones básicas con `=`, `<>`, `>`, `>=`, `<` y `<=`.
+
+## Archivo del laboratorio
+
+`FASE_15/estudiante/EJ02_Where_Comparadores.sql`
+
+## Punto de partida
+
+`Northwind_S02_Lab` debe existir y la ventana de consulta debe estar conectada al servidor correcto.
+
+## Concepto justo a tiempo
+
+`WHERE` se evalúa fila por fila. Solo pasan al resultado las filas cuya condición es verdadera. El filtro no cambia la tabla; cambia el conjunto devuelto.
+
+## Paso 1 - Lee la consulta antes de ejecutarla
 
 ```sql
-SELECT
-    ProductName,
-    UnitPrice,
-    UnitsInStock,
-    UnitPrice * UnitsInStock AS ValorInventario
-FROM dbo.Products;
-```
-
-## ¿Qué ocurre?
-
-SQL Server no agrega una columna física a `Products`. Calcula el valor únicamente para el resultado de la consulta.
-
-`AS ValorInventario` crea un alias legible.
-
-### Modificación
-
-Cambia el alias:
-
-```sql
-UnitPrice * UnitsInStock AS TotalStock
-```
-
-Comprueba que cambió el nombre mostrado, no los datos almacenados.
-
----
-
-# 7. Ejemplo 3 - Filtrar filas con WHERE
-
-## Productos con precio mayor a 50
-
-```sql
-SELECT
-    ProductName,
-    UnitPrice
-FROM dbo.Products
-WHERE UnitPrice > 50;
-```
-
-## Clientes que no pertenecen a USA
-
-```sql
-SELECT
-    CompanyName,
-    Country
+USE Northwind_S02_Lab;
+GO
+SELECT CustomerID, CompanyName, Country
 FROM dbo.Customers
-WHERE Country <> N'USA';
+WHERE Country = N'Germany';
+
+SELECT ProductID, ProductName, UnitPrice
+FROM dbo.Products
+WHERE UnitPrice > 20;
 ```
 
-## Pedidos posteriores al 1 de enero de 1997
+Identifica en voz alta o por escrito: tabla origen, columnas devueltas, condición o cálculo principal y alias utilizados.
+
+## Paso 2 - Antes de ejecutar: predicción
+
+¿La segunda consulta incluirá un producto con precio exactamente 20.00? Justifica.
+
+## Paso 3 - Ejecuta y compara
+
+Ejecuta el bloque completo. Comprueba que no hay error y compara el resultado con tu predicción. No te limites a contar filas: observa los encabezados y los valores que justifican la salida.
+
+## Variante A - cambia una condición
+
+Cambia `> 20` por `>= 20` y compara el número de filas.
+
+Vuelve a ejecutar y describe qué cambió y qué permaneció igual.
+
+## Error controlado
+
+Cambia `Country = NGermany` por `Country = Germany` sin comillas.
+
+Ejecuta solo si el docente indica que es seguro. Después restaura la versión correcta.
+
+## Por qué ocurrió
+
+Un literal de texto debe escribirse entre comillas. Sin ellas, SQL Server interpreta `Germany` como un identificador.
+
+## Corrección razonada
+
+Vuelve al archivo original, restaura la expresión correcta y confirma que la consulta ejecuta sin error y produce la evidencia esperada.
+
+## Qué debes poder explicar con tus palabras
+
+1. ¿Qué parte de la consulta decide las columnas de salida?
+2. ¿Qué parte decide qué filas o grupos permanecen?
+3. ¿Qué resultado específico usaste para validar la consulta?
+
+## T02 - Tarea espejo
+
+Muestra `CustomerID`, `CompanyName` y `Country` de clientes cuyo país sea distinto de `USA`.
+
+**Restricción:** resuélvela con conceptos presentados hasta este ejemplo; no introduzcas joins ni subconsultas.
+
+**Pista:** parte del ejemplo, pero cambia la tabla/columnas o la condición; no copies la solución final del ejemplo.
+
+**Evidencia:** consulta ejecutada y captura o copia del resultado principal.
+
+**Criterio para saber si está correcta:** No debe aparecer ninguna fila con Country = USA.
+
+
+# EJ03 - BETWEEN e IN
+
+## Qué vamos a resolver
+
+Seleccionar productos por rango de stock y por pertenencia a un conjunto de categorías.
+
+## Qué aprenderás aquí
+
+Usar `BETWEEN` para rangos inclusivos e `IN` para conjuntos discretos.
+
+## Archivo del laboratorio
+
+`FASE_15/estudiante/EJ03_Between_In.sql`
+
+## Punto de partida
+
+`Northwind_S02_Lab` debe existir y la ventana de consulta debe estar conectada al servidor correcto.
+
+## Concepto justo a tiempo
+
+`BETWEEN a AND b` incluye los extremos. `IN (v1, v2, ...)` equivale conceptualmente a comprobar si el valor pertenece a uno de los elementos listados.
+
+## Paso 1 - Lee la consulta antes de ejecutarla
 
 ```sql
-SELECT
-    OrderID,
-    CustomerID,
-    OrderDate
-FROM dbo.Orders
-WHERE OrderDate > '19970101';
-```
-
-### Idea clave
-
-`WHERE` filtra **filas antes de mostrarlas**.
-
----
-
-# 8. Ejemplo 4 - BETWEEN, IN y LIKE
-
-## BETWEEN - rango de valores
-
-```sql
-SELECT
-    ProductName,
-    UnitsInStock
+USE Northwind_S02_Lab;
+GO
+SELECT ProductID, ProductName, UnitsInStock
 FROM dbo.Products
 WHERE UnitsInStock BETWEEN 10 AND 20
 ORDER BY ProductName;
+
+SELECT ProductID, ProductName, CategoryID
+FROM dbo.Products
+WHERE CategoryID IN (1, 4, 6);
 ```
 
-`BETWEEN` incluye los dos límites.
+Identifica en voz alta o por escrito: tabla origen, columnas devueltas, condición o cálculo principal y alias utilizados.
 
-## IN - conjunto de valores
+## Paso 2 - Antes de ejecutar: predicción
+
+¿Un producto con UnitsInStock = 10 debe aparecer? ¿Y uno con 20?
+
+## Paso 3 - Ejecuta y compara
+
+Ejecuta el bloque completo. Comprueba que no hay error y compara el resultado con tu predicción. No te limites a contar filas: observa los encabezados y los valores que justifican la salida.
+
+## Variante A - cambia una condición
+
+Cambia el rango a `BETWEEN 12 AND 18` y explica qué filas límite cambian.
+
+Vuelve a ejecutar y describe qué cambió y qué permaneció igual.
+
+## Error controlado
+
+Invierte el rango: `BETWEEN 20 AND 10`.
+
+Ejecuta solo si el docente indica que es seguro. Después restaura la versión correcta.
+
+## Por qué ocurrió
+
+La forma directa espera límite inferior seguido del superior; con los valores invertidos no se satisfacen filas en este conjunto.
+
+## Corrección razonada
+
+Vuelve al archivo original, restaura la expresión correcta y confirma que la consulta ejecuta sin error y produce la evidencia esperada.
+
+## Qué debes poder explicar con tus palabras
+
+1. ¿Qué parte de la consulta decide las columnas de salida?
+2. ¿Qué parte decide qué filas o grupos permanecen?
+3. ¿Qué resultado específico usaste para validar la consulta?
+
+## T03 - Tarea espejo
+
+Lista productos cuyo stock esté entre 10 y 30 unidades y cuya categoría pertenezca al conjunto `(2, 7, 8)`.
+
+**Restricción:** resuélvela con conceptos presentados hasta este ejemplo; no introduzcas joins ni subconsultas.
+
+**Pista:** parte del ejemplo, pero cambia la tabla/columnas o la condición; no copies la solución final del ejemplo.
+
+**Evidencia:** consulta ejecutada y captura o copia del resultado principal.
+
+**Criterio para saber si está correcta:** Cada fila debe cumplir simultáneamente el rango de stock y una de las categorías indicadas.
+
+
+# EJ04 - LIKE y comodines
+
+## Qué vamos a resolver
+
+Buscar clientes por patrones de texto sin conocer el valor completo.
+
+## Qué aprenderás aquí
+
+Usar `%`, `_` y listas/rangos de caracteres soportados por LIKE en SQL Server.
+
+## Archivo del laboratorio
+
+`FASE_15/estudiante/EJ04_Like_Comodines.sql`
+
+## Punto de partida
+
+`Northwind_S02_Lab` debe existir y la ventana de consulta debe estar conectada al servidor correcto.
+
+## Concepto justo a tiempo
+
+`LIKE` compara texto con un patrón. `%` representa cero o más caracteres; `_` representa un carácter; expresiones entre corchetes permiten listas o rangos de caracteres en SQL Server.
+
+## Paso 1 - Lee la consulta antes de ejecutarla
 
 ```sql
-SELECT
-    CompanyName,
-    Country
+USE Northwind_S02_Lab;
+GO
+SELECT CustomerID, CompanyName
 FROM dbo.Customers
-WHERE Country IN (N'Germany', N'France', N'UK');
-```
+WHERE CompanyName LIKE N'C%';
 
-## LIKE - patrones de texto
-
-Clientes cuyo código postal comienza con `1`:
-
-```sql
-SELECT
-    CompanyName,
-    PostalCode
+SELECT CustomerID, CompanyName
 FROM dbo.Customers
-WHERE PostalCode LIKE N'1%';
-```
+WHERE CompanyName LIKE N'%on%';
 
-Clientes cuya ciudad contiene `London`:
-
-```sql
-SELECT
-    CompanyName,
-    City
+SELECT CustomerID, CompanyName
 FROM dbo.Customers
-WHERE City LIKE N'%London%'
-ORDER BY CompanyName;
+WHERE CompanyName LIKE N'[A-C]%';
 ```
 
-### ¿Qué significa `%`?
+Identifica en voz alta o por escrito: tabla origen, columnas devueltas, condición o cálculo principal y alias utilizados.
 
-Representa cero o más caracteres.
+## Paso 2 - Antes de ejecutar: predicción
 
-```text
-'1%'        empieza con 1
-'%London%'  contiene London
-'%a'        termina con a
-```
+¿`Cactus Comidas para llevar` aparecerá en la primera y la tercera consulta?
 
----
+## Paso 3 - Ejecuta y compara
 
-# 9. Ejemplo 5 - Funciones de agregación
+Ejecuta el bloque completo. Comprueba que no hay error y compara el resultado con tu predicción. No te limites a contar filas: observa los encabezados y los valores que justifican la salida.
 
-Las funciones de agregación resumen un conjunto de filas.
+## Variante A - cambia una condición
 
-## Promedio de precios
+Prueba `CompanyName LIKE N_r%` y describe qué exige el guion bajo.
+
+Vuelve a ejecutar y describe qué cambió y qué permaneció igual.
+
+## Error controlado
+
+Usa `CompanyName = NC%` esperando el mismo comportamiento.
+
+Ejecuta solo si el docente indica que es seguro. Después restaura la versión correcta.
+
+## Por qué ocurrió
+
+El operador `=` compara el texto literal; los comodines solo adquieren significado con `LIKE`.
+
+## Corrección razonada
+
+Vuelve al archivo original, restaura la expresión correcta y confirma que la consulta ejecuta sin error y produce la evidencia esperada.
+
+## Qué debes poder explicar con tus palabras
+
+1. ¿Qué parte de la consulta decide las columnas de salida?
+2. ¿Qué parte decide qué filas o grupos permanecen?
+3. ¿Qué resultado específico usaste para validar la consulta?
+
+## T04 - Tarea espejo
+
+Lista clientes cuyo nombre de empresa contenga la cadena `Food` o empiece con una letra entre A y C. Resuelve cada patrón en una consulta separada.
+
+**Restricción:** resuélvela con conceptos presentados hasta este ejemplo; no introduzcas joins ni subconsultas.
+
+**Pista:** parte del ejemplo, pero cambia la tabla/columnas o la condición; no copies la solución final del ejemplo.
+
+**Evidencia:** consulta ejecutada y captura o copia del resultado principal.
+
+**Criterio para saber si está correcta:** Debes demostrar al menos un patrón con `%` y otro con rango `[A-C]`.
+
+
+# EJ05 - Funciones de agregación
+
+## Qué vamos a resolver
+
+Obtener resúmenes numéricos del catálogo de productos.
+
+## Qué aprenderás aquí
+
+Interpretar `AVG`, `MAX`, `MIN`, `SUM` y `COUNT` como valores resumen.
+
+## Archivo del laboratorio
+
+`FASE_15/estudiante/EJ05_Agregaciones.sql`
+
+## Punto de partida
+
+`Northwind_S02_Lab` debe existir y la ventana de consulta debe estar conectada al servidor correcto.
+
+## Concepto justo a tiempo
+
+Una función de agregación procesa un conjunto de filas y devuelve un valor resumido. Sin `GROUP BY`, el conjunto es el resultado completo filtrado por la consulta.
+
+## Paso 1 - Lee la consulta antes de ejecutarla
 
 ```sql
-SELECT AVG(UnitPrice) AS PrecioPromedio
+USE Northwind_S02_Lab;
+GO
+SELECT AVG(UnitPrice) AS PrecioPromedio,
+       MAX(UnitPrice) AS PrecioMayor,
+       MIN(UnitPrice) AS PrecioMenor,
+       SUM(UnitsInStock) AS StockTotal,
+       COUNT(*) AS NumeroProductos
 FROM dbo.Products;
 ```
 
-## Precio máximo y mínimo
+Identifica en voz alta o por escrito: tabla origen, columnas devueltas, condición o cálculo principal y alias utilizados.
+
+## Paso 2 - Antes de ejecutar: predicción
+
+¿Cuántas filas esperas en la salida de esta consulta? ¿Por qué?
+
+## Paso 3 - Ejecuta y compara
+
+Ejecuta el bloque completo. Comprueba que no hay error y compara el resultado con tu predicción. No te limites a contar filas: observa los encabezados y los valores que justifican la salida.
+
+## Variante A - cambia una condición
+
+Agrega `WHERE CategoryID = 2` antes de ejecutar y explica qué conjunto se resume ahora.
+
+Vuelve a ejecutar y describe qué cambió y qué permaneció igual.
+
+## Error controlado
+
+Agrega `ProductName` al SELECT sin agruparlo.
+
+Ejecuta solo si el docente indica que es seguro. Después restaura la versión correcta.
+
+## Por qué ocurrió
+
+Al combinar agregaciones con una columna no agregada, SQL Server requiere que esa columna forme parte del `GROUP BY`.
+
+## Corrección razonada
+
+Vuelve al archivo original, restaura la expresión correcta y confirma que la consulta ejecuta sin error y produce la evidencia esperada.
+
+## Qué debes poder explicar con tus palabras
+
+1. ¿Qué parte de la consulta decide las columnas de salida?
+2. ¿Qué parte decide qué filas o grupos permanecen?
+3. ¿Qué resultado específico usaste para validar la consulta?
+
+## T05 - Tarea espejo
+
+Obtén el precio promedio, el precio máximo, el precio mínimo y la cantidad total de productos de la categoría 4.
+
+**Restricción:** resuélvela con conceptos presentados hasta este ejemplo; no introduzcas joins ni subconsultas.
+
+**Pista:** parte del ejemplo, pero cambia la tabla/columnas o la condición; no copies la solución final del ejemplo.
+
+**Evidencia:** consulta ejecutada y captura o copia del resultado principal.
+
+**Criterio para saber si está correcta:** La salida debe ser una sola fila y los cálculos deben considerar únicamente CategoryID = 4.
+
+
+# EJ06 - GROUP BY
+
+## Qué vamos a resolver
+
+Contar pedidos por cliente y calcular precio promedio por categoría.
+
+## Qué aprenderás aquí
+
+Dividir filas en grupos y producir un resumen por cada valor de agrupación.
+
+## Archivo del laboratorio
+
+`FASE_15/estudiante/EJ06_GroupBy.sql`
+
+## Punto de partida
+
+`Northwind_S02_Lab` debe existir y la ventana de consulta debe estar conectada al servidor correcto.
+
+## Concepto justo a tiempo
+
+`GROUP BY` crea grupos según una o más columnas. Cada grupo produce una fila de salida cuando el SELECT contiene la columna agrupada y funciones de agregación.
+
+## Paso 1 - Lee la consulta antes de ejecutarla
 
 ```sql
-SELECT
-    MAX(UnitPrice) AS PrecioMaximo,
-    MIN(UnitPrice) AS PrecioMinimo
+USE Northwind_S02_Lab;
+GO
+SELECT CustomerID, COUNT(OrderID) AS NroPedidos
+FROM dbo.Orders
+GROUP BY CustomerID
+ORDER BY NroPedidos DESC;
+
+SELECT CategoryID, AVG(UnitPrice) AS PrecioPromedio
+FROM dbo.Products
+GROUP BY CategoryID
+ORDER BY CategoryID;
+```
+
+Identifica en voz alta o por escrito: tabla origen, columnas devueltas, condición o cálculo principal y alias utilizados.
+
+## Paso 2 - Antes de ejecutar: predicción
+
+¿Esperas una fila por pedido o una fila por cliente en la primera consulta?
+
+## Paso 3 - Ejecuta y compara
+
+Ejecuta el bloque completo. Comprueba que no hay error y compara el resultado con tu predicción. No te limites a contar filas: observa los encabezados y los valores que justifican la salida.
+
+## Variante A - cambia una condición
+
+Cambia la primera agrupación a `EmployeeID` y compara qué significa cada fila.
+
+Vuelve a ejecutar y describe qué cambió y qué permaneció igual.
+
+## Error controlado
+
+Elimina `CustomerID` del `GROUP BY` pero déjalo en el SELECT.
+
+Ejecuta solo si el docente indica que es seguro. Después restaura la versión correcta.
+
+## Por qué ocurrió
+
+SQL Server no puede elegir un único CustomerID para un conjunto agregado si esa columna no define el grupo.
+
+## Corrección razonada
+
+Vuelve al archivo original, restaura la expresión correcta y confirma que la consulta ejecuta sin error y produce la evidencia esperada.
+
+## Qué debes poder explicar con tus palabras
+
+1. ¿Qué parte de la consulta decide las columnas de salida?
+2. ¿Qué parte decide qué filas o grupos permanecen?
+3. ¿Qué resultado específico usaste para validar la consulta?
+
+## T06 - Tarea espejo
+
+Muestra `EmployeeID` y la cantidad de pedidos atendidos por cada empleado, ordenando de mayor a menor.
+
+**Restricción:** resuélvela con conceptos presentados hasta este ejemplo; no introduzcas joins ni subconsultas.
+
+**Pista:** parte del ejemplo, pero cambia la tabla/columnas o la condición; no copies la solución final del ejemplo.
+
+**Evidencia:** consulta ejecutada y captura o copia del resultado principal.
+
+**Criterio para saber si está correcta:** Debe existir una fila por EmployeeID presente en Orders y una columna de conteo.
+
+
+# EJ07 - HAVING y ORDER BY sobre grupos
+
+## Qué vamos a resolver
+
+Mostrar solo clientes con un número de pedidos superior a un umbral.
+
+## Qué aprenderás aquí
+
+Diferenciar el filtrado de filas (`WHERE`) del filtrado de grupos (`HAVING`).
+
+## Archivo del laboratorio
+
+`FASE_15/estudiante/EJ07_Having_OrderBy.sql`
+
+## Punto de partida
+
+`Northwind_S02_Lab` debe existir y la ventana de consulta debe estar conectada al servidor correcto.
+
+## Concepto justo a tiempo
+
+`HAVING` se aplica después de formar grupos y permite usar condiciones sobre agregaciones como `COUNT`. `ORDER BY` organiza el resultado final.
+
+## Paso 1 - Lee la consulta antes de ejecutarla
+
+```sql
+USE Northwind_S02_Lab;
+GO
+SELECT CustomerID, COUNT(OrderID) AS NroPedidos
+FROM dbo.Orders
+GROUP BY CustomerID
+HAVING COUNT(OrderID) > 2
+ORDER BY NroPedidos DESC;
+```
+
+Identifica en voz alta o por escrito: tabla origen, columnas devueltas, condición o cálculo principal y alias utilizados.
+
+## Paso 2 - Antes de ejecutar: predicción
+
+¿Qué diferencia habría entre filtrar una fecha con WHERE y filtrar `COUNT(OrderID)` con HAVING?
+
+## Paso 3 - Ejecuta y compara
+
+Ejecuta el bloque completo. Comprueba que no hay error y compara el resultado con tu predicción. No te limites a contar filas: observa los encabezados y los valores que justifican la salida.
+
+## Variante A - cambia una condición
+
+Cambia el umbral de `> 2` a `>= 2` y analiza quiénes entran al resultado.
+
+Vuelve a ejecutar y describe qué cambió y qué permaneció igual.
+
+## Error controlado
+
+Escribe `WHERE COUNT(OrderID) > 2` antes del GROUP BY.
+
+Ejecuta solo si el docente indica que es seguro. Después restaura la versión correcta.
+
+## Por qué ocurrió
+
+`WHERE` filtra filas antes de agrupar y no puede usar directamente el resultado de esa agregación en ese punto.
+
+## Corrección razonada
+
+Vuelve al archivo original, restaura la expresión correcta y confirma que la consulta ejecuta sin error y produce la evidencia esperada.
+
+## Qué debes poder explicar con tus palabras
+
+1. ¿Qué parte de la consulta decide las columnas de salida?
+2. ¿Qué parte decide qué filas o grupos permanecen?
+3. ¿Qué resultado específico usaste para validar la consulta?
+
+## T07 - Tarea espejo
+
+Muestra `EmployeeID` y `NroPedidos` solo para empleados con más de 3 pedidos; ordena de mayor a menor.
+
+**Restricción:** resuélvela con conceptos presentados hasta este ejemplo; no introduzcas joins ni subconsultas.
+
+**Pista:** parte del ejemplo, pero cambia la tabla/columnas o la condición; no copies la solución final del ejemplo.
+
+**Evidencia:** consulta ejecutada y captura o copia del resultado principal.
+
+**Criterio para saber si está correcta:** La condición del conteo debe estar en HAVING y el orden debe ser descendente por el alias o la agregación.
+
+
+# EJ08 - Funciones de cadena, numéricas y fecha
+
+## Qué vamos a resolver
+
+Transformar valores sin modificar la tabla: texto, números y fechas.
+
+## Qué aprenderás aquí
+
+Aplicar funciones integradas y leer su resultado en una consulta.
+
+## Archivo del laboratorio
+
+`FASE_15/estudiante/EJ08_Funciones.sql`
+
+## Punto de partida
+
+`Northwind_S02_Lab` debe existir y la ventana de consulta debe estar conectada al servidor correcto.
+
+## Concepto justo a tiempo
+
+Las funciones integradas reciben valores y devuelven un resultado calculado. Pueden aplicarse a literales o columnas, y no cambian los datos almacenados salvo que se usen en una operación de modificación.
+
+## Paso 1 - Lee la consulta antes de ejecutarla
+
+```sql
+USE Northwind_S02_Lab;
+GO
+SELECT ProductName, UPPER(ProductName) AS NombreMayusculas,
+       LEFT(ProductName, 5) AS Prefijo, LEN(ProductName) AS Longitud
 FROM dbo.Products;
-```
 
-## Cantidad de productos
-
-```sql
-SELECT COUNT(*) AS CantidadProductos
+SELECT ProductName, UnitPrice, ROUND(UnitPrice * 0.90, 2) AS PrecioConDescuento
 FROM dbo.Products;
-```
 
-## Cantidad total vendida
-
-```sql
-SELECT SUM(Quantity) AS UnidadesVendidas
-FROM dbo.[Order Details];
-```
-
-### Observación importante
-
-`[Order Details]` utiliza corchetes porque su nombre contiene un espacio.
-
----
-
-# 10. Ejemplo 6 - GROUP BY
-
-Queremos saber cuántas unidades se han vendido de cada producto.
-
-```sql
-SELECT
-    ProductID,
-    SUM(Quantity) AS CantidadTotalVendida
-FROM dbo.[Order Details]
-GROUP BY ProductID
-ORDER BY CantidadTotalVendida DESC;
-```
-
-## ¿Qué hace `GROUP BY`?
-
-Reúne todas las filas que tienen el mismo `ProductID` y permite calcular un resumen por grupo.
-
-### Flujo
-
-```text
-Order Details
-      |
-      v
-agrupar por ProductID
-      |
-      v
-SUM(Quantity)
-      |
-      v
-una fila por producto
-```
-
----
-
-# 11. Ejemplo 7 - HAVING
-
-Ahora queremos conservar únicamente los productos cuya cantidad total vendida sea superior a 100.
-
-```sql
-SELECT
-    ProductID,
-    SUM(Quantity) AS CantidadTotalVendida
-FROM dbo.[Order Details]
-GROUP BY ProductID
-HAVING SUM(Quantity) > 100
-ORDER BY CantidadTotalVendida DESC;
-```
-
-## Diferencia entre WHERE y HAVING
-
-```text
-WHERE  -> filtra filas individuales
-GROUP BY -> forma grupos
-HAVING -> filtra los grupos resultantes
-```
-
-### Error frecuente
-
-Esto es incorrecto para filtrar una suma agrupada:
-
-```sql
--- No usar para este objetivo:
--- WHERE SUM(Quantity) > 100
-```
-
-La agregación se evalúa después de formar grupos; por eso corresponde `HAVING`.
-
----
-
-# 12. Ejemplo 8 - Funciones de cadena
-
-```sql
-SELECT CHARINDEX('an', 'banana') AS Posicion;
-
-SELECT CONCAT('North', 'wind') AS Nombre;
-
-SELECT LEN('Hello, world! ') AS Longitud;
-
-SELECT LEFT('Northwind', 5) AS ParteIzquierda;
-
-SELECT RIGHT('Northwind', 4) AS ParteDerecha;
-
-SELECT REPLACE('The quick brown fox', 'brown', 'red') AS Reemplazo;
-
-SELECT SUBSTRING('Northwind', 2, 5) AS Fragmento;
-
-SELECT LOWER('NORTHWIND') AS Minusculas;
-
-SELECT UPPER('northwind') AS Mayusculas;
-```
-
-## Aplicación con datos reales
-
-```sql
-SELECT
-    CompanyName,
-    UPPER(CompanyName) AS EmpresaMayusculas,
-    LEN(CompanyName) AS LongitudNombre
-FROM dbo.Customers;
-```
-
----
-
-# 13. Ejemplo 9 - Funciones numéricas
-
-```sql
-SELECT ABS(-10) AS Absoluto;
-SELECT CEILING(3.14) AS RedondeoSuperior;
-SELECT FLOOR(3.14) AS RedondeoInferior;
-SELECT POWER(2, 3) AS Potencia;
-SELECT ROUND(3.14159, 2) AS Redondeado;
-SELECT SIGN(-10) AS Signo;
-```
-
-## Aplicación al precio con descuento
-
-```sql
-SELECT
-    ProductName,
-    UnitPrice,
-    ROUND(UnitPrice * 0.90, 2) AS PrecioConDescuento
-FROM dbo.Products;
-```
-
----
-
-# 14. Ejemplo 10 - Funciones de fecha
-
-```sql
-SELECT DATEADD(day, 7, '20230420') AS FechaMasSieteDias;
-
-SELECT DATEDIFF(day, '20230420', '20230427') AS DiferenciaDias;
-
-SELECT DATEPART(year, '20230427') AS Anio;
-
-SELECT GETDATE() AS FechaHoraActual;
-```
-
-## Aplicación con pedidos
-
-```sql
-SELECT
-    OrderID,
-    OrderDate,
-    DATEPART(year, OrderDate) AS AnioPedido
+SELECT OrderID, OrderDate,
+       DATEPART(year, OrderDate) AS Anio,
+       DATEADD(day, 7, OrderDate) AS FechaMas7Dias,
+       DATEDIFF(day, OrderDate, GETDATE()) AS DiasHastaHoy
 FROM dbo.Orders;
 ```
 
----
+Identifica en voz alta o por escrito: tabla origen, columnas devueltas, condición o cálculo principal y alias utilizados.
 
-# 15. Trabajo práctico de la sesión
+## Paso 2 - Antes de ejecutar: predicción
 
-Resuelve primero sin revisar la solución docente.
+¿`ROUND(UnitPrice * 0.90, 2)` cambia el precio almacenado en Products?
 
-## Nivel A - Consultas directas
+## Paso 3 - Ejecuta y compara
 
-1. Mostrar todos los datos de `Customers`.
-2. Mostrar nombres y apellidos de `Employees`.
-3. Mostrar nombre, precio y cantidad en stock de `Products`.
-4. Mostrar clientes cuyo código postal comience con `1`.
-5. Mostrar clientes que no estén en `USA`.
-6. Mostrar pedidos posteriores al 1 de enero de 1997.
-7. Mostrar productos con stock entre 10 y 20, ordenados por nombre.
-8. Mostrar clientes cuya ciudad contenga `London`.
+Ejecuta el bloque completo. Comprueba que no hay error y compara el resultado con tu predicción. No te limites a contar filas: observa los encabezados y los valores que justifican la salida.
 
-## Nivel B - Cálculos y agregaciones
+## Variante A - cambia una condición
 
-9. Mostrar cada producto y su precio con 10% de descuento usando `ROUND`.
-10. Mostrar cantidad total vendida por `ProductID`, de mayor a menor.
-11. Mostrar solo productos cuya cantidad total vendida sea superior a 100.
-12. Mostrar para cada empleado la cantidad de pedidos registrados, conservando solo quienes superen 30 pedidos.
+Sustituye `LEFT(ProductName, 5)` por `RIGHT(ProductName, 4)` y compara el fragmento devuelto.
 
-## Nivel C - Ejercicios que usan relaciones de Northwind
+Vuelve a ejecutar y describe qué cambió y qué permaneció igual.
 
-Algunos enunciados finales de la presentación requieren recuperar información que está distribuida entre varias tablas, por ejemplo nombre de producto + proveedor o cliente + total comprado.
+## Error controlado
 
-Estos ejercicios sirven como **puente de integración**. La sesión actual se concentra en `SELECT`, filtros, agregaciones y funciones. El docente decidirá si los resuelve al cierre o los reserva para la sesión de consultas multitabla.
+Usa `SUBSTRING(ProductName, 0, 5)` esperando los cinco primeros caracteres.
 
----
+Ejecuta solo si el docente indica que es seguro. Después restaura la versión correcta.
 
-# 16. Evidencias de la práctica
+## Por qué ocurrió
 
-Al finalizar conserva:
+En T-SQL la posición inicial habitual de `SUBSTRING` comienza en 1; usar 0 cambia el fragmento esperado.
 
-1. Captura de `Northwind` visible en SSMS.
-2. Captura o consulta que muestre tablas instaladas.
-3. Archivo `.sql` con tus consultas.
-4. Resultado de al menos:
-   - una consulta simple;
-   - una consulta con `WHERE`;
-   - una con `BETWEEN`, `IN` o `LIKE`;
-   - una agregación;
-   - una consulta `GROUP BY`;
-   - una consulta `HAVING`;
-   - una función de cadena, numérica o fecha.
+## Corrección razonada
 
----
+Vuelve al archivo original, restaura la expresión correcta y confirma que la consulta ejecuta sin error y produce la evidencia esperada.
 
-# 17. Tabla de errores frecuentes
+## Qué debes poder explicar con tus palabras
 
-| Situación | Causa probable | Qué revisar |
+1. ¿Qué parte de la consulta decide las columnas de salida?
+2. ¿Qué parte decide qué filas o grupos permanecen?
+3. ¿Qué resultado específico usaste para validar la consulta?
+
+## T08 - Tarea espejo
+
+Genera un reporte con ProductName, nombre en minúsculas, los 3 primeros caracteres y precio con 10% de descuento redondeado a 2 decimales. Luego, en una consulta separada, muestra OrderID, OrderDate y el mes con DATEPART.
+
+**Restricción:** resuélvela con conceptos presentados hasta este ejemplo; no introduzcas joins ni subconsultas.
+
+**Pista:** parte del ejemplo, pero cambia la tabla/columnas o la condición; no copies la solución final del ejemplo.
+
+**Evidencia:** consulta ejecutada y captura o copia del resultado principal.
+
+**Criterio para saber si está correcta:** Debe evidenciar al menos una función de cadena, ROUND y DATEPART con alias legibles.
+
+
+## 8. Tareas espejo de consolidación
+
+| TAREA_ID | EJEMPLO_ID | Evidencia mínima |
 |---|---|---|
-| `Invalid object name 'Customers'` | La base activa no es Northwind o Northwind no está instalada | Ejecuta `USE Northwind;` y valida las tablas |
-| El script crea objetos donde no corresponde | Se ejecutó con `master` seleccionado | Crear/seleccionar `Northwind` antes de ejecutar |
-| `Database 'Northwind' already exists` | Intentaste crearla de nuevo | No la recrees; úsala si está vacía o valida su contenido |
-| Error con `Order Details` | El nombre tiene espacio | Utiliza `[Order Details]` |
-| `HAVING` produce error | Se usó sin agrupación adecuada | Revisa `GROUP BY` y la función agregada |
-| `LIKE` no devuelve lo esperado | El comodín está mal colocado | Revisa `%` al inicio/final según el patrón |
+| T01 | EJ01 | Consulta + resultado + explicación breve de validación |
+| T02 | EJ02 | Consulta + resultado + explicación breve de validación |
+| T03 | EJ03 | Consulta + resultado + explicación breve de validación |
+| T04 | EJ04 | Consulta + resultado + explicación breve de validación |
+| T05 | EJ05 | Consulta + resultado + explicación breve de validación |
+| T06 | EJ06 | Consulta + resultado + explicación breve de validación |
+| T07 | EJ07 | Consulta + resultado + explicación breve de validación |
+| T08 | EJ08 | Consulta + resultado + explicación breve de validación |
 
----
 
-# 18. Checklist final
+## 9. Cierre de la sesión
 
-- [ ] Northwind aparece en SSMS.
-- [ ] `SELECT DB_NAME()` devuelve `Northwind`.
-- [ ] Existen `Customers`, `Employees`, `Products`, `Orders` y `Order Details`.
-- [ ] Puedo ejecutar `SELECT`.
-- [ ] Puedo filtrar con `WHERE`.
-- [ ] Puedo usar `BETWEEN`, `IN` y `LIKE`.
-- [ ] Comprendo `AVG`, `MAX`, `MIN`, `SUM` y `COUNT`.
-- [ ] Puedo agrupar con `GROUP BY`.
-- [ ] Puedo filtrar grupos con `HAVING`.
-- [ ] Puedo aplicar funciones de cadena, numéricas y fecha.
+Hoy pasaste de escribir consultas aisladas a razonar sobre cómo SQL Server construye un resultado. Empezaste seleccionando columnas y expresiones, después restringiste filas con `WHERE`, rangos y conjuntos, y comprobaste que los patrones de `LIKE` permiten búsquedas que no requieren conocer el texto completo. Luego cambiaste de escala: en lugar de mirar una fila, resumiste conjuntos con funciones de agregación, formaste grupos con `GROUP BY` y aplicaste `HAVING` cuando el criterio dependía del resultado agregado. Finalmente utilizaste funciones integradas para transformar texto, números y fechas sin modificar los datos almacenados.
 
----
+Antes de dar por terminada la sesión, revisa tus T01-T08 y asegúrate de que puedes explicar por qué cada consulta es correcta. Si una salida te sorprende, no la memorices: vuelve a la condición, predice de nuevo y compara. Esa disciplina será importante en las siguientes sesiones, donde las consultas podrán incorporar nuevas formas de relacionar o transformar información.
 
-# 19. Mapa final de la sesión
-
-```text
-Instalar Northwind
-       |
-       v
-SELECT
-       |
-       v
-WHERE
-       |
-       +--> BETWEEN
-       +--> IN
-       +--> LIKE
-       |
-       v
-Agregaciones
-       |
-       v
-GROUP BY
-       |
-       v
-HAVING
-       |
-       v
-Funciones SQL Server
-       |
-       v
-Trabajo práctico
-```
-
-## Cierre
-
-En esta sesión no solo ejecutaste consultas: preparaste el entorno, comprobaste la base activa, interpretaste resultados y utilizaste Northwind como escenario común para toda la práctica.
-
-**Blog:** https://lideratecacademy.com/  
-**Canal:** https://www.youtube.com/@LideratecAcademy
+Para continuar repasando, puedes revisar recursos académicos de Lideratec Academy:  
+Blog: https://lideratecacademy.com/blog/  
+Canal: https://www.youtube.com/@LideratecAcademy
